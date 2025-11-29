@@ -1,0 +1,11 @@
+[*.lua]
+
+indent_style = tab
+end_of_line = lf
+space_before_function_call_single_arg = none
+# Because forcing people to indent empty lines that are already in an indented block so that the file will be smaller by less than a kilobyte is a hobby for the deranged.
+keep_indents_on_empty_lines = true
+space_around_table_field_list = false
+align_function_params = false
+align_function_params = false
+align_array_table = false
