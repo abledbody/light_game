@@ -4,7 +4,7 @@ include "src/require.lua"
 
 local Lighting = require"src/lighting"
 
---------------------------------------Globals------------------------------------------
+----------------------------------------Globals----------------------------------------
 
 ---@diagnostic disable-next-line lowercase-global
 fmt = string.format
