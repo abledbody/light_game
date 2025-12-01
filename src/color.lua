@@ -52,7 +52,7 @@ end
 ---@param u32_values userdata i32, 64x1
 ---@return userdata
 local function rgba32_to_rgbf64(u32_values)
-	local f32_values = userdata("f64", 3, 64)
+	local f64_values = userdata("f64", 3, 64)
 	
 	for i = 0, 63 do
 		local col = u32_values[i]
@@ -62,10 +62,10 @@ local function rgba32_to_rgbf64(u32_values)
 			(col & 0xFF)
 		) / 255
 		
-		f32_values:copy(srgb, true, 0, i * 3)
+		f64_values:copy(srgb, true, 0, i * 3)
 	end
 	
-	return f32_values
+	return f64_values
 end
 
 ---@param input userdata f32, 3x64
