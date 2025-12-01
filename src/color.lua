@@ -8,6 +8,8 @@ local function srgb_to_linear(rgb)
 	)
 end
 
+---@param rgb userdata f64, 3x1
+---@return userdata rgb f64, 3x1
 local function linear_to_srgb(rgb)
 	return vec(
 		rgb.x >= 0.0031308 and 1.055 * (rgb.x ^ (1.0 / 2.4)) - 0.055 or 12.92 * rgb.x,
@@ -68,7 +70,11 @@ local function oklab_to_linear(rgb)
 	return lms:matmul(lms_rgb_mat)
 end
 
+---@param rgb userdata f64, 3x1
+---@return userdata rgb f64, 3x1
 local function srgb_to_oklab(rgb) return linear_to_oklab(srgb_to_linear(rgb)) end
+---@param rgb userdata f64, 3x1
+---@return userdata rgb f64, 3x1
 local function oklab_to_srgb(rgb) return linear_to_srgb(oklab_to_linear(rgb)) end
 
 ---@param palette userdata f64, 3x64
