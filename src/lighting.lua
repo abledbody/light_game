@@ -14,16 +14,14 @@ local function new(main_palette, normal_palette)
 			target_col = target_col * 2 - 1
 			return max(draw_col:dot(target_col), 0) * 63
 		end,
-		"srgb",
-		normal_palette
+		normal_palette, "srgb"
 	)
 	
 	local ct_mul_light = Color.generate_coltab(
-		function(_, _, draw_i, target_i)
+		function(draw_i, target_i)
 			return draw_i * target_i // 63
 		end,
-		"srgb",
-		main_palette
+		true
 	)
 	
 	local ct_color_light = Color.generate_coltab(
@@ -31,7 +29,6 @@ local function new(main_palette, normal_palette)
 			-- Doubles the effective light.
 			return draw_i / 31.5 * target_col
 		end,
-		"linear",
 		main_palette
 	)
 	
@@ -39,7 +36,6 @@ local function new(main_palette, normal_palette)
 		function(draw_col, target_col)
 			return draw_col * target_col
 		end,
-		"linear",
 		main_palette
 	)
 	
@@ -47,7 +43,6 @@ local function new(main_palette, normal_palette)
 		function(draw_col, target_col)
 			return draw_col + target_col
 		end,
-		"linear",
 		main_palette
 	)
 	
