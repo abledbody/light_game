@@ -23,27 +23,43 @@ function _init()
 	local main_palette = fetch(DATP .. "pal/0.pal")
 	local normal_palette = fetch(DATP .. "pal/normal.pal")
 	
-	local lighting = Lighting.new(main_palette, normal_palette)
+	local lighting = Lighting.new(main_palette, normal_palette, 12)
+	
+	--normal_palette:poke(0x5000)
+	--fetch(DATP .. "pal/value.pal"):poke(0x5000)
 	
 	---@class AppState
 	state = {
-		lighting = lighting
+		lighting = lighting,
+		map = fetch(DATP .. "map/0.map"),
+		mouse_pos = vec(0, 0)
 	}
 end
 
 function _update()
-	
+	local mx, my = mouse()
+	state.mouse_pos = vec(mx, my)
 end
 
 function _draw()
 	cls()
-	-- Temporary. Displays generated color maps.
+	local display = get_display()
+	local normals = userdata("u8", display:width(), display:height() or 1)
 	local lighting = state.lighting
-	blit(lighting.ct_dot)
-	blit(lighting.ct_mul_light, nil, nil, nil, 64)
-	blit(lighting.ct_color_light, nil, nil, nil, 128)
-	blit(lighting.ct_mul, nil, nil, nil, 192)
-	blit(lighting.ct_add, nil, nil, nil, 256)
+	
+	map(state.map[1].bmp)
+	set_draw_target(normals)
+	map(state.map[1].bmp + 256)
+	set_draw_target(display)
+	
+	lighting:dispatch(normals, {
+		{position = state.mouse_pos, color = 7},
+		{position = vec(cos(t() * 0.04) * 240 + 240, sin(t() * 0.02) * 135 + 135), color = 8},
+		{position = vec(cos(t() * 0.046) * 240 + 240, sin(t() * 0.034) * 135 + 135), color = 11},
+		{position = vec(cos(t() * 0.042) * 240 + 240, sin(t() * 0.006) * 135 + 135), color = 16}
+	})
+	
+	print(fmt("\^o0ffCPU: %.2f%%", stat(1) * 100), 1, 1, 7)
 end
 
 include "src/error_explorer.lua"
