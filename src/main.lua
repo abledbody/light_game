@@ -22,11 +22,15 @@ function _init()
 	
 	local main_palette = fetch(DATP .. "pal/0.pal")
 	local normal_palette = fetch(DATP .. "pal/normal.pal")
+	main_palette:poke(0x5000)
 	
-	local lighting = Lighting.new(main_palette, normal_palette, 12)
-	
-	--normal_palette:poke(0x5000)
-	--fetch(DATP .. "pal/value.pal"):poke(0x5000)
+	local lighting = Lighting.new(
+		main_palette,
+		normal_palette,
+		24,
+		4, 0,
+		get_spr(192):convert("f64") / 64
+	)
 	
 	---@class AppState
 	state = {
@@ -47,16 +51,17 @@ function _draw()
 	local normals = userdata("u8", display:width(), display:height() or 1)
 	local lighting = state.lighting
 	
+	-- Temporary, proof of concept.
 	map(state.map[1].bmp)
 	set_draw_target(normals)
 	map(state.map[1].bmp + 256)
 	set_draw_target(display)
 	
-	lighting:dispatch(normals, {
-		{position = state.mouse_pos, color = 7},
-		{position = vec(cos(t() * 0.04) * 240 + 240, sin(t() * 0.02) * 135 + 135), color = 8},
-		{position = vec(cos(t() * 0.046) * 240 + 240, sin(t() * 0.034) * 135 + 135), color = 11},
-		{position = vec(cos(t() * 0.042) * 240 + 240, sin(t() * 0.006) * 135 + 135), color = 16}
+	lighting:light(normals, {
+		Lighting.new_light(state.mouse_pos, 7),
+		Lighting.new_light(vec(cos(t() * 0.04) * 240 + 240, sin(t() * 0.02) * 135 + 135), 8),
+		Lighting.new_light(vec(cos(t() * 0.046) * 240 + 240, sin(t() * 0.034) * 135 + 135), 11),
+		Lighting.new_light(vec(cos(t() * 0.042) * 240 + 240, sin(t() * 0.006) * 135 + 135), 33)
 	})
 	
 	print(fmt("\^o0ffCPU: %.2f%%", stat(1) * 100), 1, 1, 7)

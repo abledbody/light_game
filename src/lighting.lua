@@ -3,69 +3,53 @@ local atan = math.atan
 local pi = math.pi
 local tau = pi * 2
 
-local blue_noise = get_spr(192):convert("f64") / 64
-
-local function dither(data, w, h)
-	local tiled_noise = userdata("f64", w, h)
-	for y = 0, h - 1, blue_noise:height() or 1 do
-		for x = 0, w - 1, blue_noise:width() do
-			blit(blue_noise, tiled_noise, 0, 0, x, y)
-		end
-	end
-	
-	return data + tiled_noise
+---@param position userdata f64, 3x1
+---@param color integer
+---@return Light
+local function new_light(position, color)
+	---@class Light
+	local light = {
+		position = position,
+		color = color,
+	}
+	return light
 end
+
+------------------------------------Procedural maps------------------------------------
 
 local elevation_steps = {1, 8, 8, 12, 16, 19}
 local elevation_offsets = {0, 1, 9, 17, 29, 45}
 
 ---@param size integer
 ---@param z integer
-local function generate_light_normals(size, z)
-	local zz = z * z
-	
-	local x_all = userdata("f64", size, size)
-	-- Initialize first row with [-size * 0.5, 1, ..., 1]
-	x_all:set(0, 0, -size * 0.5)
-	x_all:copy(1, true, 0, 1, size - 1)
-		-- Prefix sum first row
-		:add(x_all, true, 0, 1, 1, 1, 1, size - 1)
-	
-	local x_sqr = x_all
-		-- Square first row
-		:mul(x_all, false, 0, 0, 1, 1, 1, size)
-	
-	-- Copy first row to all others
-	x_all:copy(x_all, true, 0, size, size, 0, size, size - 1)
-	x_sqr:copy(x_sqr, true, 0, size, size, 0, size, size - 1)
-	
-	local inverse_magnitudes = 1 / (x_sqr + x_sqr:transpose() + zz):pow(0.5)
-	local z_normalized = z * inverse_magnitudes
-	
+---@param noise userdata f64
+local function generate_light_normals(size, z, noise)
 	local ud = userdata("u8", size, size)
 	
 	for y = 0, size - 1 do
+		local cy = y - size * 0.5
 		for x = 0, size - 1 do
-			local angle_noise_sample = blue_noise:get(
-				x % blue_noise:width(),
-				y % blue_noise:height(),
+			local cx = x - size * 0.5
+			
+			local angle_noise_sample = noise:get(
+				x % noise:width(),
+				y % noise:height(),
 				1
 			)
-			local elevation_noise_sample = blue_noise:get(
-				(y + 4) % blue_noise:width(),
-				(x + 4) % blue_noise:height(),
+			local elevation_noise_sample = noise:get(
+				(y + 4) % noise:width(),
+				(x + 4) % noise:height(),
 				1
 			)
 			
-			local elevation = min(
-				flr((1 - z_normalized:get(x, y)) * (#elevation_steps - 1) + elevation_noise_sample),
-				#elevation_steps - 1
-			) + 1
+			local elevation = atan((cx * cx + cy * cy)^0.5, z) / pi
+			elevation = flr(elevation * (#elevation_steps - 1) + elevation_noise_sample)
+			elevation = min(elevation, #elevation_steps - 1) + 1
 			
 			local steps = elevation_steps[elevation] or elevation_steps[#elevation_steps]
 			local offset = elevation_offsets[elevation] or elevation_offsets[#elevation_offsets]
 			
-			local angle = atan(size * 0.5 - y, size * 0.5 - x)
+			local angle = atan(-cy, -cx)
 			local step = (angle / tau * steps + angle_noise_sample) % steps
 			ud:set(x, y, offset + step)
 		end
@@ -75,14 +59,15 @@ local function generate_light_normals(size, z)
 end
 
 ---@param z number
----@param clamp_low number
+---@param threshold number
 ---@param clamp_high number
-local function generate_light_luminance(z, clamp_low, clamp_high)
-	clamp_low = max(clamp_low, 1)
+---@param noise userdata f64
+local function generate_light_luminance(z, threshold, clamp_high, noise)
+	threshold = max(threshold, 1)
 	
 	local zz = z * z
-	local normalizing_scale = (63 + clamp_low) * (zz + clamp_high)
-    local distance_squared = normalizing_scale / (1 - 63/64 + clamp_low)
+	local normalizing_scale = (63 + threshold) * (zz + clamp_high)
+    local distance_squared = normalizing_scale / (1 - 63/64 + threshold)
     local radius = sqrt(distance_squared)
     local size = ceil(radius * 2) + 1
 	
@@ -99,13 +84,13 @@ local function generate_light_luminance(z, clamp_low, clamp_high)
 	
 	-- Inverse squared distance
 	local lums = x_all.div(1, x_all + x_all:transpose() + zz)
-	local lums_63 = (lums * normalizing_scale - clamp_low):max(0):min(63)
+	local lums_63 = (lums * normalizing_scale - threshold):max(0):min(63)
 	
 	
 	local tiled_noise = userdata("f64", size, size)
-	for y = 0, size - 1, blue_noise:height() or 1 do
-		for x = 0, size - 1, blue_noise:width() do
-			blit(blue_noise, tiled_noise, 0, 0, x, y)
+	for y = 0, size - 1, noise:height() or 1 do
+		for x = 0, size - 1, noise:width() do
+			blit(noise, tiled_noise, 0, 0, x, y)
 		end
 	end
 	
@@ -114,17 +99,15 @@ local function generate_light_luminance(z, clamp_low, clamp_high)
 	return ud
 end
 
+---------------------------------------Rendering---------------------------------------
+
 ---@class Lighting
 local m_lighting = {}
 m_lighting.__index = m_lighting
 
----@class Light
----@field color integer
----@field position userdata f64, 3x1
-
 ---@param normal userdata
 ---@param lights Light[]
-function m_lighting:dispatch(normal, lights)
+function m_lighting:light(normal, lights)
 	local prev_draw_target = get_draw_target()
 	local cx, cy = camera()
 	local w, h = prev_draw_target:width(), prev_draw_target:height() or 1
@@ -170,8 +153,11 @@ end
 
 ---@param main_palette userdata i32, 64x1
 ---@param normal_palette userdata i32, 64x1
+---@param light_threshold number
+---@param light_clamp_high number
+---@param noise userdata f64
 ---@return Lighting
-local function new(main_palette, normal_palette, light_distance)
+local function new(main_palette, normal_palette, light_distance, light_threshold, light_clamp_high, noise)
 	local ct_dot = Color.generate_coltab(
 		function(draw_col, target_col)
 			draw_col = draw_col * 2 - 1
@@ -210,8 +196,8 @@ local function new(main_palette, normal_palette, light_distance)
 		main_palette
 	)
 	
-	local light_luminance_map = generate_light_luminance(light_distance, 1, 35)
-	local light_normal_map = generate_light_normals(light_luminance_map:width(), light_distance)
+	local light_luminance_map = generate_light_luminance(light_distance, light_threshold, light_clamp_high, noise)
+	local light_normal_map = generate_light_normals(light_luminance_map:width(), light_distance, noise)
 	
 	---@class Lighting
 	local lighting = {
@@ -221,11 +207,12 @@ local function new(main_palette, normal_palette, light_distance)
 		ct_mul = ct_mul,
 		ct_add = ct_add,
 		light_luminance = light_luminance_map,
-		light_normal_map = light_normal_map
+		light_normal_map = light_normal_map,
 	}
 	return setmetatable(lighting, m_lighting)
 end
 
 return {
-	new = new
+	new = new,
+	new_light = new_light
 }
