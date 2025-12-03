@@ -27,8 +27,7 @@ function _init()
 	local lighting = Lighting.new(
 		main_palette,
 		normal_palette,
-		24,
-		4, 0,
+		18, 2,
 		get_spr(192):convert("f64") / 64
 	)
 	
@@ -58,10 +57,10 @@ function _draw()
 	set_draw_target(display)
 	
 	lighting:light(normals, {
-		Lighting.new_light(state.mouse_pos, 7),
 		Lighting.new_light(vec(cos(t() * 0.04) * 240 + 240, sin(t() * 0.02) * 135 + 135), 8),
 		Lighting.new_light(vec(cos(t() * 0.046) * 240 + 240, sin(t() * 0.034) * 135 + 135), 11),
-		Lighting.new_light(vec(cos(t() * 0.042) * 240 + 240, sin(t() * 0.006) * 135 + 135), 33)
+		Lighting.new_light(vec(cos(t() * 0.042) * 240 + 240, sin(t() * 0.006) * 135 + 135), 33),
+		Lighting.new_light(state.mouse_pos, 7)
 	})
 	
 	print(fmt("\^o0ffCPU: %.2f%%", stat(1) * 100), 1, 1, 7)

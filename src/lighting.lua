@@ -1,7 +1,7 @@
 local Color = require"src/color"
 local atan = math.atan
-local pi = math.pi
-local tau = pi * 2
+local eta = math.pi * 0.5
+local tau = math.pi * 2
 
 ---@param position userdata f64, 3x1
 ---@param color integer
@@ -42,7 +42,7 @@ local function generate_light_normals(size, z, noise)
 				1
 			)
 			
-			local elevation = atan((cx * cx + cy * cy)^0.5, z) / pi
+			local elevation = atan((cx * cx + cy * cy)^0.5, z) / eta
 			elevation = flr(elevation * (#elevation_steps - 1) + elevation_noise_sample)
 			elevation = min(elevation, #elevation_steps - 1) + 1
 			
@@ -60,13 +60,12 @@ end
 
 ---@param z number
 ---@param threshold number
----@param clamp_high number
 ---@param noise userdata f64
-local function generate_light_luminance(z, threshold, clamp_high, noise)
+local function generate_light_luminance(z, threshold, noise)
 	threshold = max(threshold, 1)
 	
 	local zz = z * z
-	local normalizing_scale = (63 + threshold) * (zz + clamp_high)
+	local normalizing_scale = (63 + threshold) * zz
     local distance_squared = normalizing_scale / (1 - 63/64 + threshold)
     local radius = sqrt(distance_squared)
     local size = ceil(radius * 2) + 1
@@ -138,6 +137,7 @@ function m_lighting:light(normal, lights)
 		
 		camera(cx, cy)
 		set_draw_target(color_buffer)
+		
 		memmap(self.ct_add, 0x8000)
 		spr(buffer, light.position.x - center.x, light.position.y - center.y)
 		unmap(self.ct_add)
@@ -153,11 +153,11 @@ end
 
 ---@param main_palette userdata i32, 64x1
 ---@param normal_palette userdata i32, 64x1
+---@param light_distance number
 ---@param light_threshold number
----@param light_clamp_high number
 ---@param noise userdata f64
 ---@return Lighting
-local function new(main_palette, normal_palette, light_distance, light_threshold, light_clamp_high, noise)
+local function new(main_palette, normal_palette, light_distance, light_threshold, noise)
 	local ct_dot = Color.generate_coltab(
 		function(draw_col, target_col)
 			draw_col = draw_col * 2 - 1
@@ -196,7 +196,7 @@ local function new(main_palette, normal_palette, light_distance, light_threshold
 		main_palette
 	)
 	
-	local light_luminance_map = generate_light_luminance(light_distance, light_threshold, light_clamp_high, noise)
+	local light_luminance_map = generate_light_luminance(light_distance, light_threshold, noise)
 	local light_normal_map = generate_light_normals(light_luminance_map:width(), light_distance, noise)
 	
 	---@class Lighting
