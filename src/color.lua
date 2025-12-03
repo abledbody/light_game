@@ -1,3 +1,5 @@
+--------------------------------Color space conversion---------------------------------
+
 ---@param rgb userdata f64, 3x1
 ---@return userdata rgb f64, 3x1
 local function srgb_to_linear(rgb)
@@ -77,40 +79,6 @@ local function srgb_to_oklab(rgb) return linear_to_oklab(srgb_to_linear(rgb)) en
 ---@return userdata rgb f64, 3x1
 local function oklab_to_srgb(rgb) return linear_to_srgb(oklab_to_linear(rgb)) end
 
----@param palette userdata f64, 3x64
----@param rgb userdata f64, 3x1
----@return integer index
-local function get_closest(palette, rgb)
-	local best_dist, best_index = math.huge, 0
-	for test_i = 0, 63 do
-		local dist = (palette:row(test_i) - rgb):magnitude()
-		
-		if dist < best_dist then
-			best_dist, best_index = dist, test_i
-		end
-	end
-	return best_index
-end
-
----@param u32_values userdata i32, 64x1
----@return userdata
-local function rgba32_to_rgbf64(u32_values)
-	local f64_values = userdata("f64", 3, 64)
-	
-	for i = 0, 63 do
-		local col = u32_values[i]
-		local srgb = vec(
-			((col >> 16) & 0xFF),
-			((col >> 8) & 0xFF),
-			(col & 0xFF)
-		) / 255
-		
-		f64_values:copy(srgb, true, 0, i * 3)
-	end
-	
-	return f64_values
-end
-
 ---@param input userdata f32, 3x64
 ---@param converter fun(rgb: userdata): userdata
 ---@return userdata output f32, 3x64
@@ -139,6 +107,44 @@ local space_convert = {
 		linear = oklab_to_linear
 	}
 }
+
+--------------------------------------Color data---------------------------------------
+
+---@param u32_values userdata i32, 64x1
+---@return userdata
+local function rgba32_to_rgbf64(u32_values)
+	local f64_values = userdata("f64", 3, 64)
+	
+	for i = 0, 63 do
+		local col = u32_values[i]
+		local srgb = vec(
+			((col >> 16) & 0xFF),
+			((col >> 8) & 0xFF),
+			(col & 0xFF)
+		) / 255
+		
+		f64_values:copy(srgb, true, 0, i * 3)
+	end
+	
+	return f64_values
+end
+
+---@param palette userdata f64, 3x64
+---@param rgb userdata f64, 3x1
+---@return integer index
+local function get_closest(palette, rgb)
+	local best_dist, best_index = math.huge, 0
+	for test_i = 0, 63 do
+		local dist = (palette:row(test_i) - rgb):magnitude()
+		
+		if dist < best_dist then
+			best_dist, best_index = dist, test_i
+		end
+	end
+	return best_index
+end
+
+--------------------------------Color table generation---------------------------------
 
 ---@alias ColorBlender fun(draw_col: userdata, target_col: userdata, draw_i: integer, target_i: integer): userdata|integer
 ---@alias IndexBlender fun(draw_i: integer, target_i: integer): integer
